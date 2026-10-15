@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PN生成器与规格配置 (OC & BIWIN)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --oc-primary: #2563eb;
+            --oc-light: #eff6ff;
+            --oc-border: #bfdbfe;
+            --oc-text: #1e3a5f;
+            --oc-muted: #93c5fd;
+            --biwin-primary: #4f46e5;
+            --biwin-light: #eef2ff;
+            --biwin-border: #c7d2fe;
+            --biwin-text: #312e81;
+            --biwin-muted: #a5b4fc;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f0f4ff 0%, #f8fafc 40%, #f1f5f9 100%);
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+        }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.625rem center;
+            background-repeat: no-repeat;
+            background-size: 1.25em 1.25em;
+            padding-right: 2.25rem;
+            cursor: pointer;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .form-select:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .15);
+        }
+
+        .pn-value { transition: all .25s cubic-bezier(.4, 0, .2, 1); }
+        .pn-highlight { animation: pnPulse .4s ease-out; }
+        @keyframes pnPulse {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.04); }
+            100% { transform: scale(1); }
+        }
+
+        .tab-btn { transition: all .25s cubic-bezier(.4, 0, .2, 1); }
+        .form-panel { transition: opacity .3s ease; }
+        .form-panel.hidden-panel { display: none; }
+
+        .breakdown-table th { font-weight: 600; font-size: .75rem; letter-spacing: .05em; }
+        .breakdown-table td { font-size: .8125rem; }
+
+        .spec-section {
+            border: 2px dashed #d1d5db;
+            transition: all .3s ease;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6 flex flex-col items-center">
+
+    <div class="max-w-6xl w-full bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 md:p-8">
+
+        <!-- ===== 标题 ===== -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-2 tracking-tight">
+                <span class="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">PN</span>生成器与规格配置
+            </h1>
+            <p class="text-gray-400 text-sm">选择规则生成PN，并配置颗粒类型、内存测试良率、产品系列等规格信息</p>
+        </header>
+
+        <!-- ===== 标签页 ===== -->
+        <nav class="flex justify-center mb-8">
+            <div class="bg-gray-100 p-1 rounded-xl inline-flex shadow-inner" role="tablist">
+                <button id="tab-ocl" role="tab" aria-selected="true"
+                        class="tab-btn px-8 py-2.5 rounded-lg font-semibold text-sm bg-white shadow-sm"
+                        style="color: var(--oc-primary);">OC 规则</button>
+                <button id="tab-biwin" role="tab" aria-selected="false"
+                        class="tab-btn px-8 py-2.5 rounded-lg font-semibold text-sm text-gray-500 hover:text-gray-700">
+                    BIWIN 规则</button>
+            </div>
+        </nav>
+
+        <!-- ===== PN 预览区 ===== -->
+        <section id="pn-preview-box"
+                 class="rounded-2xl p-8 md:p-10 mb-8 flex flex-col items-center justify-center relative shadow-inner transition-all duration-300"
+                 style="background: var(--oc-light); border: 1px solid var(--oc-border);">
+            <span id="pn-type-label" class="text-xs font-bold mb-2 uppercase tracking-widest"
+                  style="color: var(--oc-muted);">OC Generated PN</span>
+            <div id="pn-result"
+                 class="pn-value text-3xl md:text-5xl font-mono font-extrabold tracking-wider break-all text-center select-all"
+                 style="color: var(--oc-text);">OCL622632D-VB</div>
+            <div id="pn-spec-info" class="mt-3 text-sm font-medium opacity-70"
+                 style="color: var(--oc-text);">颗粒: -- | 良率: --% | 系列: Vortex</div>
+            <div class="flex gap-3 mt-3">
+                <button id="copy-btn"
+                        class="px-6 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center gap-2 active:scale-95 text-white"
+                        style="background: var(--oc-primary);">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    复制 PN</button>
+                <button id="reset-btn"
+                        class="px-6 py-2.5 rounded-xl text-sm font-semibold transition-all border-2 hover:shadow-md flex items-center gap-2 active:scale-95"
+                        style="border-color: var(--oc-border); color: var(--oc-primary);">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    重置</button>
+            </div>
+        </section>
+
+        <!-- ===== 规格配置区（独立于PN生成） ===== -->
+        <section id="spec-section" class="spec-section bg-gradient-to-r from-gray-50/80 to-slate-50/80 rounded-2xl p-6 mb-8">
+            <div class="flex items-center gap-2 mb-5">
+                <span class="text-lg">📋</span>
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider">规格配置（独立于PN生成）</h2>
+                <hr class="flex-1 ml-2" style="border:none;border-top:1px solid #d1d5db;margin-bottom:0;">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- 颗粒类型 -->
+                <div>
+                    <label for="die-type" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">颗粒类型 (Die Type)</label>
+                    <select id="die-type" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                        <option value="">-- 请选择 --</option>
+                        <option value="Samsung B-Die 16Gb">Samsung B-Die 16Gb (2Gbx8)</option>
+                        <option value="Samsung C-Die 16Gb">Samsung C-Die 16Gb (2Gbx8)</option>
+                        <option value="Samsung D-Die 16Gb">Samsung D-Die 16Gb (2Gbx8)</option>
+                        <option value="Hynix A-Die 16Gb">Hynix A-Die 16Gb (2Gbx8)</option>
+                        <option value="Hynix M-Die 16Gb">Hynix M-Die 16Gb (2Gbx8)</option>
+                        <option value="Hynix M-Die 24Gb">Hynix M-Die 24Gb (3Gbx8)</option>
+                        <option value="Hynix C-Die 16Gb">Hynix C-Die 16Gb (2Gbx8)</option>
+                        <option value="Hynix D-Die 16Gb">Hynix D-Die 16Gb (2Gbx8)</option>
+                        <option value="Micron A-Die 16Gb">Micron A-Die 16Gb (2Gbx8)</option>
+                        <option value="Micron B-Die 16Gb">Micron B-Die 16Gb (2Gbx8)</option>
+                        <option value="Micron D-Die 24Gb">Micron D-Die 24Gb (3Gbx8)</option>
+                        <option value="Micron G-Die 24Gb">Micron G-Die 24Gb (3Gbx8)</option>
+                        <option value="SpecTek Y62E H-die">SpecTek Y62E H-die</option>
+                        <option value="SpecTek Y52K D-die">SpecTek Y52K D-die</option>
+                        <option value="SpecTek Y4CA B-die">SpecTek Y4CA B-die</option>
+                        <option value="SpecTek Y32A A-die">SpecTek Y32A A-die</option>
+                        <option value="SpecTek Y32B G-die">SpecTek Y32B G-die</option>
+                        <option value="SpecTek Y5CB C-die">SpecTek Y5CB C-die</option>
+                        <option value="SpecTek Y53A B-die">SpecTek Y53A B-die</option>
+                        <option value="SpecTek Y52P C-die">SpecTek Y52P C-die</option>
+                        <option value="Nanya">Nanya</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <!-- 内存测试良率 -->
+                <div>
+                    <label for="test-yield" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">内存测试良率 (Memory Test Yield)</label>
+                    <div class="flex items-center">
+                        <input id="test-yield" type="text" placeholder="如 99.5" class="w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition" />
+                        <span class="ml-2 text-sm text-gray-500 font-medium">%</span>
+                    </div>
+                </div>
+                <!-- 产品系列 -->
+                <div>
+                    <label id="series-label" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">产品系列 (Product Series)</label>
+                    <div id="series-display" class="p-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 min-h-[42px] flex items-center">
+                        Vortex
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== OC 表单 ==================== -->
+        <div id="ocl-form" class="form-panel">
+
+            <!-- 规格参数组 -->
+            <div class="mb-6">
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+                    <span class="w-1.5 h-4 rounded-full inline-block" style="background: var(--oc-primary);"></span> 规格参数
+                </h2>
+                <p class="text-xs text-gray-400 mb-3">品牌、速度、时序与容量</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="ocl-x1" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X1 · 品牌</label>
+                        <select id="ocl-x1" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="OCL">OC — Origin Code</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="ocl-x2x3" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X2~X3 · 速度</label>
+                        <select id="ocl-x2x3" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="60">60 — 6000</option>
+                            <option value="62" selected>62 — 6200</option>
+                            <option value="64">64 — 6400</option>
+                            <option value="80">80 — 8000</option>
+                            <option value="82">82 — 8200</option>
+                            <option value="84">84 — 8400</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="ocl-x4x5" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X4~X5 · 时序</label>
+                        <select id="ocl-x4x5" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="26" selected>26 — CL26</option>
+                            <option value="28">28 — CL28</option>
+                            <option value="30">30 — CL30</option>
+                            <option value="32">32 — CL32</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="ocl-x6" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X6 · 容量</label>
+                        <select id="ocl-x6" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="16">16 — 16GB</option>
+                            <option value="24">24 — 24GB</option>
+                            <option value="32" selected>32 — 32GB</option>
+                            <option value="48">48 — 48GB</option>
+                            <option value="64">64 — 64GB</option>
+                            <option value="96">96 — 96GB</option>
+                            <option value="28">28 — 128GB</option>
+                            <option value="92">92 — 192GB</option>
+                            <option value="56">56 — 256GB</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 包装与外观组 -->
+            <div class="mb-6">
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+                    <span class="w-1.5 h-4 rounded-full inline-block" style="background: var(--biwin-primary);"></span> 包装与外观
+                </h2>
+                <p class="text-xs text-gray-400 mb-3">包装方式、系列与颜色</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="ocl-x7" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X7 · 包装方式</label>
+                        <select id="ocl-x7" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="B">B — BLUK</option>
+                            <option value="S">S — Retail 1 Kit</option>
+                            <option value="D" selected>D — Retail 2 Kits</option>
+                            <option value="Q">Q — Retail 4 Kits</option>
+                            <option value="O">O — Retail 8 Kits</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="ocl-x8" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X8 · 系列（含连字符）</label>
+                        <select id="ocl-x8" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="-V" selected>V — Vortex</option>
+                            <option value="-E">E — Vortex Evolution</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="ocl-x9" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X9 · 颜色 <span class="font-normal text-gray-400">(选填)</span></label>
+                        <select id="ocl-x9" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="">（无）</option>
+                            <option value="B" selected>B — Black</option>
+                            <option value="W">W — White</option>
+                            <option value="S">S — Silver</option>
+                            <option value="G">G — Green</option>
+                            <option value="R">R — Red</option>
+                            <option value="C">C — Copper</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== BIWIN 表单 ==================== -->
+        <div id="biwin-form" class="form-panel hidden-panel">
+
+            <!-- 基础信息组 -->
+            <div class="mb-6">
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+                    <span class="w-1.5 h-4 rounded-full inline-block" style="background: var(--biwin-primary);"></span> 基础信息
+                </h2>
+                <p class="text-xs text-gray-400 mb-3">品牌、系列与代际</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="biwin-x1" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X1 · 品牌</label>
+                        <select id="biwin-x1" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="B" selected>B — Biwin</option>
+                            <option value="A">A — Asus（代工）</option>
+                            <option value="H">H — HP 消费级内部</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="biwin-x2" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X2 · 系列/联名</label>
+                        <select id="biwin-x2" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="M">M — Mainstream</option>
+                            <option value="X" selected>X — BLACK OPAL</option>
+                            <option value="A">A — AMBER</option>
+                            <option value="R">R — ROG 联名</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="biwin-x4" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X4 · DDR 代际</label>
+                        <select id="biwin-x4" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="3">3 — DDR3</option>
+                            <option value="4">4 — DDR4</option>
+                            <option value="5" selected>5 — DDR5</option>
+                            <option value="6">6 — DDR6</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 规格参数组 -->
+            <div class="mb-6">
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+                    <span class="w-1.5 h-4 rounded-full inline-block" style="background: var(--oc-primary);"></span> 规格参数
+                </h2>
+                <p class="text-xs text-gray-400 mb-3">接口、容量、速率、系列与时序</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="biwin-x3" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X3 · Interface</label>
+                        <select id="biwin-x3" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="C">C — CAMM2</option>
+                            <option value="D">D — LPDDR CAMM2</option>
+                            <option value="E">E — ECC SO-DIMM</option>
+                            <option value="F">F — ECC U-DIMM</option>
+                            <option value="S">S — SO-DIMM</option>
+                            <option value="U">U — U-DIMM</option>
+                            <option value="H">H — UDIMM with Heatsink</option>
+                            <option value="L" selected>L — RGB With Heat-Sink</option>
+                            <option value="J">J — CSODIMM</option>
+                            <option value="K">K — CUDIMM</option>
+                            <option value="V">V — VLP U-DIMM</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="biwin-x5x6" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X5~X6 · 容量</label>
+                        <select id="biwin-x5x6" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="8G">8G — 8GB</option>
+                            <option value="16" selected>16 — 16GB</option>
+                            <option value="24">24 — 24GB</option>
+                            <option value="32">32 — 32GB</option>
+                            <option value="48">48 — 48GB</option>
+                            <option value="64">64 — 64GB</option>
+                            <option value="96">96 — 96GB</option>
+                            <option value="28">28 — 128GB</option>
+                            <option value="92">92 — 192GB</option>
+                            <option value="56">56 — 256GB</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="biwin-x7x8" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X7~X8 · 速率</label>
+                        <select id="biwin-x7x8" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="24">24 — 2400 MT/s</option>
+                            <option value="26">26 — 2666 MT/s</option>
+                            <option value="30">30 — 3000 MT/s</option>
+                            <option value="32">32 — 3200 MT/s</option>
+                            <option value="36">36 — 3600 MT/s</option>
+                            <option value="38">38 — 3866 MT/s</option>
+                            <option value="40">40 — 4000 MT/s</option>
+                            <option value="42">42 — 4200 MT/s</option>
+                            <option value="48">48 — 4800 MT/s</option>
+                            <option value="52">52 — 5200 MT/s</option>
+                            <option value="56">56 — 5600 MT/s</option>
+                            <option value="60">60 — 6000 MT/s</option>
+                            <option value="64">64 — 6400 MT/s</option>
+                            <option value="68" selected>68 — 6800 MT/s</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="biwin-x9x11" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X9~X11 · 产品系列</label>
+                        <select id="biwin-x9x11" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="DW1" selected>DW1 — DW100</option>
+                            <option value="DWE">DWE — DW100 EXPO1.2</option>
+                            <option value="DX1">DX1 — DX100</option>
+                            <option value="HXE">HXE — HX100 EXPO1.2</option>
+                            <option value="HX1">HX1 — HX100</option>
+                            <option value="MC1">MC1 — MC100</option>
+                            <option value="UD">UD — U-DIMM</option>
+                            <option value="SD">SD — SO-DIMM</option>
+                            <option value="SH">SH — ASUS Sherry（代工）</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="biwin-x13x14" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X13~X14 · CAS 延迟</label>
+                        <select id="biwin-x13x14" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="16">16 — CL16</option><option value="18">18 — CL18</option>
+                            <option value="20">20 — CL20</option><option value="22">22 — CL22</option>
+                            <option value="30" selected>30 — CL30</option><option value="32">32 — CL32</option>
+                            <option value="34">34 — CL34</option><option value="36">36 — CL36</option>
+                            <option value="38">38 — CL38</option><option value="40">40 — CL40</option>
+                            <option value="45">45 — CL45</option><option value="46">46 — CL46</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="biwin-x15" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X15 · 电压</label>
+                        <select id="biwin-x15" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="A">A — 1.10V</option><option value="B">B — 1.20V</option>
+                            <option value="C">C — 1.25V</option><option value="D">D — 1.30V</option>
+                            <option value="E" selected>E — 1.35V</option><option value="F">F — 1.40V</option>
+                            <option value="G">G — 1.45V</option><option value="H">H — 1.50V</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 包装与外观组 -->
+            <div>
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+                    <span class="w-1.5 h-4 rounded-full inline-block" style="background: #f59e0b;"></span> 包装与外观
+                </h2>
+                <p class="text-xs text-gray-400 mb-3">包装方式、颜色与其他信息</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="biwin-x12" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X12 · 包装方式</label>
+                        <select id="biwin-x12" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="B">B — BLUK</option>
+                            <option value="S">S — Retail 1 Kit</option>
+                            <option value="D" selected>D — Retail 2 Kits</option>
+                            <option value="Q">Q — Retail 4 Kits</option>
+                            <option value="O">O — Retail 8 Kits</option>
+                            <option value="H">H — 行包包装</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="biwin-x16" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X16 · 颜色</label>
+                        <select id="biwin-x16" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="B">B — Black</option>
+                            <option value="W" selected>W — White</option>
+                            <option value="S">S — Silver</option>
+                            <option value="G">G — Green</option>
+                            <option value="R">R — Red</option>
+                            <option value="X">X — Unlimited</option>
+                        </select>
+                    </div>
+                    <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                        <label for="biwin-x17" class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">X17 · 其他信息 <span class="font-normal text-gray-400">(选填)</span></label>
+                        <select id="biwin-x17" class="form-select w-full p-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white">
+                            <option value="" selected>（无）</option>
+                            <option value="1">1 — 1Rank</option>
+                            <option value="2">2 — 2Rank</option>
+                            <option value="A">A — 1R16</option>
+                            <option value="Z">Z — 区分版本</option>
+                            <option value="B">B — 区分版本</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== PN 编码拆解说明 ===== -->
+        <aside id="breakdown-box" class="mt-8 p-5 rounded-xl text-sm transition-colors duration-300"
+               style="background: var(--oc-light); color: var(--oc-text);">
+            <h2 id="breakdown-title" class="font-bold mb-3 text-base">OC 编码拆解说明</h2>
+            <p class="text-xs text-gray-500 mb-4">逐位置展示各字段对应的编码值与含义</p>
+            <div class="overflow-x-auto">
+                <table class="breakdown-table w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b" style="border-color: var(--oc-border);">
+                            <th class="py-2 pr-3 text-gray-500">位置</th>
+                            <th class="py-2 pr-3 text-gray-500">字段名称</th>
+                            <th class="py-2 pr-3 text-gray-500">代码</th>
+                            <th class="py-2 text-gray-500">含义</th>
+                        </tr>
+                    </thead>
+                    <tbody id="breakdown-body"></tbody>
+                </table>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- ===== JavaScript ===== -->
+    <script>
+    (() => {
+        /* ===== Meaning maps ===== */
+        const OC_MEANING = {
+            'ocl-x1':   { OCL:'Origin Code LAB' },
+            'ocl-x2x3': { '60':'6000','62':'6200','64':'6400','80':'8000','82':'8200','84':'8400' },
+            'ocl-x4x5': { '26':'CL26','28':'CL28','30':'CL30','32':'CL32' },
+            'ocl-x6':   { '16':'16GB','24':'24GB','32':'32GB','48':'48GB','64':'64GB','96':'96GB','28':'128GB','92':'192GB','56':'256GB' },
+            'ocl-x7':   { B:'BLUK',S:'Retail 1 Kit',D:'Retail 2 Kits',Q:'Retail 4 Kits',O:'Retail 8 Kits' },
+            'ocl-x8':   { '-V':'Vortex','-E':'Vortex Evolution' },
+            'ocl-x9':   { '':'（无）',B:'Black',W:'White',S:'Silver',G:'Green',R:'Red',C:'Copper' },
+        };
+        const BIWIN_MEANING = {
+            'biwin-x1':    { B:'Biwin',A:'Asus（代工）',H:'HP 消费级内部' },
+            'biwin-x2':    { M:'Mainstream',X:'BLACK OPAL',A:'AMBER',R:'ROG 联名' },
+            'biwin-x3':    { C:'CAMM2',D:'LPDDR CAMM2',E:'ECC SO-DIMM',F:'ECC U-DIMM',S:'SO-DIMM',U:'U-DIMM',H:'UDIMM with Heatsink',L:'RGB With Heat-Sink',J:'CSODIMM',K:'CUDIMM',V:'VLP U-DIMM' },
+            'biwin-x4':    { '3':'DDR3','4':'DDR4','5':'DDR5','6':'DDR6' },
+            'biwin-x5x6':  { '8G':'8GB','16':'16GB','24':'24GB','32':'32GB','48':'48GB','64':'64GB','96':'96GB','28':'128GB','92':'192GB','56':'256GB' },
+            'biwin-x7x8':  { '24':'2400 MT/s','26':'2666 MT/s','30':'3000 MT/s','32':'3200 MT/s','36':'3600 MT/s','38':'3866 MT/s','40':'4000 MT/s','42':'4200 MT/s','48':'4800 MT/s','52':'5200 MT/s','56':'5600 MT/s','60':'6000 MT/s','64':'6400 MT/s','68':'6800 MT/s' },
+            'biwin-x9x11': { DW1:'DW100',DWE:'DW100 EXPO1.2',DX1:'DX100',HXE:'HX100 EXPO1.2',HX1:'HX100',MC1:'MC100',UD:'U-DIMM',SD:'SO-DIMM',SH:'ASUS Sherry（代工）' },
+            'biwin-x12':   { B:'BLUK',S:'Retail 1 Kit',D:'Retail 2 Kits',Q:'Retail 4 Kits',O:'Retail 8 Kits',H:'行包包装' },
+            'biwin-x13x14':{ '16':'CL16','18':'CL18','20':'CL20','22':'CL22','30':'CL30','32':'CL32','34':'CL34','36':'CL36','38':'CL38','40':'CL40','45':'CL45','46':'CL46' },
+            'biwin-x15':   { A:'1.10V',B:'1.20V',C:'1.25V',D:'1.30V',E:'1.35V',F:'1.40V',G:'1.45V',H:'1.50V' },
+            'biwin-x16':   { B:'Black',W:'White',S:'Silver',G:'Green',R:'Red',X:'Unlimited' },
+            'biwin-x17':   { '':'（无）','1':'1Rank','2':'2Rank',A:'1R16',Z:'区分版本',B:'区分版本' },
+        };
+
+        /* ===== Theme ===== */
+        const THEME = {
+            ocl: {
+                primary: 'var(--oc-primary)', light: 'var(--oc-light)',
+                border: 'var(--oc-border)', text: 'var(--oc-text)', muted: 'var(--oc-muted)',
+                label: 'OC Generated PN', title: 'OC 编码拆解说明',
+                labelMap: { 'ocl-x1':'X1|品牌','ocl-x2x3':'X2~X3|速度','ocl-x4x5':'X4~X5|时序','ocl-x6':'X6|容量','ocl-x7':'X7|包装方式','ocl-x8':'X8|系列','ocl-x9':'X9|颜色' },
+            },
+            biwin: {
+                primary: 'var(--biwin-primary)', light: 'var(--biwin-light)',
+                border: 'var(--biwin-border)', text: 'var(--biwin-text)', muted: 'var(--biwin-muted)',
+                label: 'BIWIN Generated PN', title: 'BIWIN 编码拆解说明（含手动连字符）',
+                labelMap: { 'biwin-x1':'X1|品牌','biwin-x2':'X2|系列/联名','biwin-x3':'X3|Interface','biwin-x4':'X4|DDR代际','biwin-x5x6':'X5~X6|容量','biwin-x7x8':'X7~X8|速率','biwin-x9x11':'X9~X11|产品系列','biwin-x12':'X12|包装方式','biwin-x13x14':'X13~X14|CAS延迟','biwin-x15':'X15|电压','biwin-x16':'X16|颜色','biwin-x17':'X17|其他信息' },
+            }
+        };
+
+        let currentTab = 'ocl';
+        const $ = (id) => document.getElementById(id);
+
+        /* field-id maps */
+        const OC_IDS   = ['ocl-x1','ocl-x2x3','ocl-x4x5','ocl-x6','ocl-x7','ocl-x8','ocl-x9'];
+        const BIWIN_IDS = ['biwin-x1','biwin-x2','biwin-x3','biwin-x4','biwin-x5x6','biwin-x7x8','biwin-x9x11','biwin-x12','biwin-x13x14','biwin-x15','biwin-x16','biwin-x17'];
+
+        /* DOM */
+        const tabOcl      = $('tab-ocl');
+        const tabBiwin    = $('tab-biwin');
+        const oclForm     = $('ocl-form');
+        const biwinForm   = $('biwin-form');
+        const pnResult    = $('pn-result');
+        const pnBox       = $('pn-preview-box');
+        const pnTypeLabel = $('pn-type-label');
+        const copyBtn     = $('copy-btn');
+        const resetBtn    = $('reset-btn');
+        const breakdownBox = $('breakdown-box');
+        const breakdownTitle = $('breakdown-title');
+        const breakdownBody  = $('breakdown-body');
+        const seriesDisplay  = $('series-display');
+        const pnSpecInfo     = $('pn-spec-info');
+        const dieTypeEl      = $('die-type');
+        const testYieldEl    = $('test-yield');
+
+        /* Save defaults */
+        const defaults = {};
+        [...OC_IDS, ...BIWIN_IDS].forEach(id => { const el = $(id); if (el) defaults[id] = el.value; });
+
+        /* ===== Spec Info ===== */
+        function updateSpecInfo() {
+            const dieText = (dieTypeEl && dieTypeEl.value) ? dieTypeEl.options[dieTypeEl.selectedIndex].text : '--';
+            const yieldVal = (testYieldEl && testYieldEl.value) ? testYieldEl.value : '';
+            const yieldText = yieldVal ? yieldVal + '%' : '--%';
+            const seriesText = seriesDisplay ? seriesDisplay.textContent : '--';
+            pnSpecInfo.textContent = '\u9897\u7c92: ' + dieText + ' | \u826f\u7387: ' + yieldText + ' | \u7cfb\u5217: ' + seriesText;
+        }
+
+        function updateSeriesDisplay() {
+            if (currentTab === 'ocl') {
+                const x8Val = $('ocl-x8').value;
+                const names = { '-V': 'Vortex', '-E': 'Vortex Evolution' };
+                seriesDisplay.textContent = names[x8Val] || x8Val;
+            } else {
+                const x2Val = $('biwin-x2').value;
+                const x911Val = $('biwin-x9x11').value;
+                const x2Names = { M:'Mainstream', X:'BLACK OPAL', A:'AMBER', R:'ROG \u8054\u540d' };
+                const x911Names = { DW1:'DW100', DWE:'DW100 EXPO1.2', DX1:'DX100', HXE:'HX100 EXPO1.2', HX1:'HX100', MC1:'MC100', UD:'U-DIMM', SD:'SO-DIMM', SH:'ASUS Sherry\uff08\u4ee3\u5de5\uff09' };
+                const x2Name = x2Names[x2Val] || x2Val;
+                const x911Name = x911Names[x911Val] || x911Val;
+                seriesDisplay.textContent = x2Name + ' (' + x911Name + ')';
+            }
+            updateSpecInfo();
+        }
+
+        /* ===== PN Generation ===== */
+        function buildPN() {
+            if (currentTab === 'ocl') {
+                const v = OC_IDS.map(id => $(id).value);
+                return v[0] + v[1] + v[2] + v[3] + v[4] + v[5] + v[6];
+            }
+            const v = BIWIN_IDS.map(id => $(id).value);
+            return v[0] + v[1] + v[2] + v[3] + v[4] + v[5] + v[6] + '-' + v[7] + v[8] + v[9] + v[10] + v[11];
+        }
+
+        function updatePN() {
+            pnResult.textContent = buildPN();
+            updateBreakdown();
+        }
+
+        /* ===== Breakdown Table ===== */
+        function updateBreakdown() {
+            const ids = currentTab === 'ocl' ? OC_IDS : BIWIN_IDS;
+            const meaning = currentTab === 'ocl' ? OC_MEANING : BIWIN_MEANING;
+            const labelMap = THEME[currentTab].labelMap;
+            const rows = ids.map(id => {
+                const code = $(id).value;
+                const [pos, field] = (labelMap[id] || id).split('|');
+                const desc = (meaning[id] || {})[code] || code;
+                return `<tr class="border-b" style="border-color: var(--${currentTab}-border);"><td class="py-2 pr-3 font-mono text-xs font-bold">${pos}</td><td class="py-2 pr-3 font-medium">${field}</td><td class="py-2 pr-3 font-mono font-bold">${code}</td><td class="py-2">${desc}</td></tr>`;
+            });
+            breakdownBody.innerHTML = rows.join('');
+        }
+
+        /* ===== Theme Application ===== */
+        function applyTheme(tab) {
+            const t = THEME[tab];
+            pnBox.style.background = t.light;
+            pnBox.style.borderColor = t.border;
+            pnTypeLabel.textContent = t.label;
+            pnTypeLabel.style.color = t.muted;
+            pnResult.style.color = t.text;
+            pnSpecInfo.style.color = t.text;
+            copyBtn.style.background = t.primary;
+            resetBtn.style.borderColor = t.border;
+            resetBtn.style.color = t.primary;
+            breakdownBox.style.background = t.light;
+            breakdownBox.style.color = t.text;
+            breakdownTitle.textContent = t.title;
+            tabOcl.setAttribute('aria-selected', tab === 'ocl' ? 'true' : 'false');
+            tabBiwin.setAttribute('aria-selected', tab === 'biwin' ? 'true' : 'false');
+        }
+
+        /* ===== Tab Switching ===== */
+        function switchTab(tab) {
+            if (currentTab === tab) return;
+            currentTab = tab;
+
+            if (tab === 'ocl') {
+                tabOcl.className = 'tab-btn px-8 py-2.5 rounded-lg font-semibold text-sm bg-white shadow-sm';
+                tabOcl.style.color = THEME.ocl.primary;
+                tabBiwin.className = 'tab-btn px-8 py-2.5 rounded-lg font-semibold text-sm text-gray-500 hover:text-gray-700';
+                tabBiwin.style.color = '';
+                oclForm.classList.remove('hidden-panel');
+                biwinForm.classList.add('hidden-panel');
+            } else {
+                tabBiwin.className = 'tab-btn px-8 py-2.5 rounded-lg font-semibold text-sm bg-white shadow-sm';
+                tabBiwin.style.color = THEME.biwin.primary;
+                tabOcl.className = 'tab-btn px-8 py-2.5 rounded-lg font-semibold text-sm text-gray-500 hover:text-gray-700';
+                tabOcl.style.color = '';
+                biwinForm.classList.remove('hidden-panel');
+                oclForm.classList.add('hidden-panel');
+            }
+            applyTheme(tab);
+            updatePN();
+            updateSeriesDisplay();
+        }
+
+        /* ===== Copy (PN + spec info) ===== */
+        const copyIconHTML = copyBtn.innerHTML;
+        copyBtn.addEventListener('click', async () => {
+            try {
+                const copyText = pnResult.textContent + '\n' + pnSpecInfo.textContent;
+                await navigator.clipboard.writeText(copyText);
+                const prevBg = copyBtn.style.background;
+                copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> \u5df2\u590d\u5236!';
+                copyBtn.style.background = '#16a34a';
+                setTimeout(() => { copyBtn.innerHTML = copyIconHTML; copyBtn.style.background = prevBg; }, 1800);
+            } catch { alert('\u590d\u5236\u5931\u8d25\uff0c\u8bf7\u624b\u52a8\u590d\u5236\u3002'); }
+        });
+
+        /* ===== Reset ===== */
+        resetBtn.addEventListener('click', () => {
+            const ids = currentTab === 'ocl' ? OC_IDS : BIWIN_IDS;
+            ids.forEach(id => { if (defaults[id]) $(id).value = defaults[id]; });
+            updatePN();
+            updateSeriesDisplay();
+            pnResult.classList.remove('pn-highlight');
+            void pnResult.offsetWidth;
+            pnResult.classList.add('pn-highlight');
+        });
+
+        /* ===== Events ===== */
+        tabOcl.addEventListener('click', () => switchTab('ocl'));
+        tabBiwin.addEventListener('click', () => switchTab('biwin'));
+
+        // All selects trigger PN + series + spec update
+        document.querySelectorAll('select').forEach(s => {
+            s.addEventListener('change', () => {
+                updatePN();
+                updateSeriesDisplay();
+                pnResult.classList.remove('pn-highlight');
+                void pnResult.offsetWidth;
+                pnResult.classList.add('pn-highlight');
+            });
+        });
+
+        // Test yield input: filter + immediate spec update
+        if (testYieldEl) {
+            testYieldEl.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9.]/g, '');
+                updateSpecInfo();
+            });
+        }
+
+        /* ===== Init ===== */
+        applyTheme('ocl');
+        updateBreakdown();
+        updateSeriesDisplay();
+    })();
+    </script>
+</body>
+</html>
